@@ -1,0 +1,20 @@
+# ── ビルド成果物 ──
+build/
+dist/
+*.pyd
+*.so
+*.obj
+*.exp
+*.lib
+
+# ── Python キャッシュ ──
+__pycache__/
+*.pyc
+
+# ── パッケージ情報 ──
+*.egg-info/
+*.egg
+
+# ── IDE / エディタ ──
+.vscode/
+.idea/

@@ -1,8 +1,0 @@
-setup.py
-src/main.cpp
-symbuna/__init__.py
-symbuna.egg-info/PKG-INFO
-symbuna.egg-info/SOURCES.txt
-symbuna.egg-info/dependency_links.txt
-symbuna.egg-info/requires.txt
-symbuna.egg-info/top_level.txt
