@@ -1,0 +1,5 @@
+[build-system]
+# ビルド時に必要なパッケージを指定します。
+# これにより、ビルド用環境に自動で pybind11 がインストールされます。
+requires = ["setuptools>=42", "pybind11>=2.10"]
+build-backend = "setuptools.build_meta"
