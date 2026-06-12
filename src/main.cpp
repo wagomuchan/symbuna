@@ -92,4 +92,7 @@ PYBIND11_MODULE(_symbuna_core, m) {
 
     // ── 簡略化関数 simplify ───────────────────────────
     m.def("simplify", &symbuna::simplify, "数式を簡略化する", py::arg("expr"));
+
+    // ── 展開関数 expand ─────────────────────────────
+    m.def("expand", &symbuna::expand, "数式を展開して同類項をまとめる", py::arg("expr"));
 }

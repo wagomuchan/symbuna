@@ -16,6 +16,7 @@ namespace symbuna {
 //   - 分母の有理化（1/√2 → √2/2）
 //   - べき乗の計算（2^3 → 8, x^0 → 1）
 ExprPtr simplify(ExprPtr expr);
+ExprPtr expand(ExprPtr expr);
 
 } // namespace symbuna
 

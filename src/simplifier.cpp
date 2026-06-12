@@ -2,6 +2,7 @@
 #include <cmath>
 #include <map>
 #include <vector>
+#include <algorithm>
 
 namespace symbuna {
 
@@ -336,6 +337,234 @@ ExprPtr simplify(ExprPtr expr) {
             return std::make_shared<Tan>(op);
         }
 
+        default:
+            return expr;
+    }
+}
+
+struct Monomial {
+    int coeff;
+    std::vector<std::pair<ExprPtr, int>> vars;
+};
+
+Monomial parse_monomial(ExprPtr expr) {
+    if (expr->type() == ExprType::INT) {
+        return {std::static_pointer_cast<Int>(expr)->value(), {}};
+    }
+    if (expr->type() == ExprType::NEG) {
+        Monomial m = parse_monomial(std::static_pointer_cast<Neg>(expr)->operand());
+        m.coeff = -m.coeff;
+        return m;
+    }
+    if (expr->type() == ExprType::MUL) {
+        Monomial m1 = parse_monomial(std::static_pointer_cast<Mul>(expr)->left());
+        Monomial m2 = parse_monomial(std::static_pointer_cast<Mul>(expr)->right());
+        
+        Monomial res;
+        res.coeff = m1.coeff * m2.coeff;
+        res.vars = m1.vars;
+        
+        for (auto& v2 : m2.vars) {
+            bool found = false;
+            for (auto& v1 : res.vars) {
+                if (v1.first->equals(v2.first)) {
+                    v1.second += v2.second;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                res.vars.push_back(v2);
+            }
+        }
+        return res;
+    }
+    if (expr->type() == ExprType::POW) {
+        auto p = std::static_pointer_cast<Pow>(expr);
+        if (p->exp()->type() == ExprType::INT) {
+            int e = std::static_pointer_cast<Int>(p->exp())->value();
+            return {1, {{p->base(), e}}};
+        }
+    }
+    return {1, {{expr, 1}}};
+}
+
+ExprPtr build_monomial(const Monomial& m) {
+    ExprPtr res = nullptr;
+    
+    std::vector<std::pair<ExprPtr, int>> sorted_vars = m.vars;
+    std::sort(sorted_vars.begin(), sorted_vars.end(), [](const auto& a, const auto& b) {
+        return a.first->to_string() > b.first->to_string();
+    });
+    
+    for (auto& v : sorted_vars) {
+        if (v.second == 0) continue;
+        ExprPtr part;
+        if (v.second == 1) {
+            part = v.first;
+        } else {
+            part = std::make_shared<Pow>(v.first, std::make_shared<Int>(v.second));
+        }
+        
+        if (!res) {
+            res = part;
+        } else {
+            res = std::make_shared<Mul>(res, part);
+        }
+    }
+    
+    if (m.coeff == 0) return std::make_shared<Int>(0);
+    if (!res) return std::make_shared<Int>(m.coeff);
+    if (m.coeff == 1) return res;
+    if (m.coeff == -1) return std::make_shared<Neg>(res);
+    
+    return std::make_shared<Mul>(std::make_shared<Int>(m.coeff), res);
+}
+
+void flatten_add(ExprPtr expr, std::vector<Monomial>& terms) {
+    if (!expr) return;
+    if (expr->type() == ExprType::ADD) {
+        auto a = std::static_pointer_cast<Add>(expr);
+        flatten_add(a->left(), terms);
+        flatten_add(a->right(), terms);
+    } else {
+        terms.push_back(parse_monomial(expr));
+    }
+}
+
+ExprPtr collect_terms(ExprPtr expr) {
+    std::vector<Monomial> terms;
+    flatten_add(expr, terms);
+    
+    std::map<std::string, Monomial> term_map;
+    
+    for (auto& m : terms) {
+        if (m.coeff == 0) continue;
+        
+        Monomial var_only = m;
+        var_only.coeff = 1;
+        std::string key = build_monomial(var_only)->to_string();
+        
+        if (term_map.find(key) == term_map.end()) {
+            term_map[key] = m;
+        } else {
+            term_map[key].coeff += m.coeff;
+        }
+    }
+    
+    std::vector<std::pair<std::string, Monomial>> sorted_terms(term_map.begin(), term_map.end());
+    
+    std::sort(sorted_terms.begin(), sorted_terms.end(), [](const auto& a, const auto& b) {
+        if (a.first == "1" && b.first != "1") return false;
+        if (b.first == "1" && a.first != "1") return true;
+        return a.first > b.first;
+    });
+
+    ExprPtr result = nullptr;
+    for (auto& kv : sorted_terms) {
+        if (kv.second.coeff == 0) continue;
+        ExprPtr term_expr = build_monomial(kv.second);
+        
+        if (!result) {
+            result = term_expr;
+        } else {
+            result = std::make_shared<Add>(result, term_expr);
+        }
+    }
+    
+    if (!result) return std::make_shared<Int>(0);
+    return result;
+}
+
+ExprPtr distribute_mul(ExprPtr l, ExprPtr r) {
+    if (l->type() == ExprType::ADD) {
+        auto a = std::static_pointer_cast<Add>(l);
+        return std::make_shared<Add>(
+            distribute_mul(a->left(), r),
+            distribute_mul(a->right(), r)
+        );
+    }
+    if (r->type() == ExprType::ADD) {
+        auto a = std::static_pointer_cast<Add>(r);
+        return std::make_shared<Add>(
+            distribute_mul(l, a->left()),
+            distribute_mul(l, a->right())
+        );
+    }
+    return std::make_shared<Mul>(l, r);
+}
+
+ExprPtr distribute_pow(ExprPtr base, int exp) {
+    if (exp == 0) return std::make_shared<Int>(1);
+    if (exp == 1) return base;
+    
+    ExprPtr half = distribute_pow(base, exp / 2);
+    ExprPtr res = collect_terms(distribute_mul(half, half));
+    if (exp % 2 == 1) {
+        res = collect_terms(distribute_mul(res, base));
+    }
+    return res;
+}
+
+ExprPtr expand(ExprPtr expr) {
+    if (!expr) return nullptr;
+    
+    expr = simplify(expr);
+    
+    switch (expr->type()) {
+        case ExprType::ADD: {
+            auto a = std::static_pointer_cast<Add>(expr);
+            auto l = expand(a->left());
+            auto r = expand(a->right());
+            return collect_terms(std::make_shared<Add>(l, r));
+        }
+        case ExprType::MUL: {
+            auto m = std::static_pointer_cast<Mul>(expr);
+            auto l = expand(m->left());
+            auto r = expand(m->right());
+            auto res = distribute_mul(l, r);
+            return collect_terms(res);
+        }
+        case ExprType::POW: {
+            auto p = std::static_pointer_cast<Pow>(expr);
+            auto base = expand(p->base());
+            if (p->exp()->type() == ExprType::INT) {
+                int e = std::static_pointer_cast<Int>(p->exp())->value();
+                if (e >= 0) {
+                    auto res = distribute_pow(base, e);
+                    return collect_terms(res);
+                }
+            }
+            return std::make_shared<Pow>(base, p->exp());
+        }
+        case ExprType::NEG: {
+            auto n = std::static_pointer_cast<Neg>(expr);
+            return collect_terms(std::make_shared<Neg>(expand(n->operand())));
+        }
+        case ExprType::SQRT: {
+            auto s = std::static_pointer_cast<Sqrt>(expr);
+            return std::make_shared<Sqrt>(expand(s->operand()));
+        }
+        case ExprType::CBRT: {
+            auto c = std::static_pointer_cast<Cbrt>(expr);
+            return std::make_shared<Cbrt>(expand(c->operand()));
+        }
+        case ExprType::SIN: {
+            auto s = std::static_pointer_cast<Sin>(expr);
+            return std::make_shared<Sin>(expand(s->operand()));
+        }
+        case ExprType::COS: {
+            auto c = std::static_pointer_cast<Cos>(expr);
+            return std::make_shared<Cos>(expand(c->operand()));
+        }
+        case ExprType::TAN: {
+            auto t = std::static_pointer_cast<Tan>(expr);
+            return std::make_shared<Tan>(expand(t->operand()));
+        }
+        case ExprType::LOG: {
+            auto l = std::static_pointer_cast<Log>(expr);
+            return std::make_shared<Log>(expand(l->operand()));
+        }
         default:
             return expr;
     }

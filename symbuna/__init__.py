@@ -2,14 +2,14 @@
 SymBuna ── 高校数Ⅲレベルの数式処理ライブラリ
 """
 
-from _symbuna_core import Expr, Int, Var, Rational, Neg, Add, Mul, Div, Pow, Sqrt, Pi, E, Cbrt, Sin, Cos, Tan, Log, simplify
+from _symbuna_core import Expr, Int, Var, Rational, Neg, Add, Mul, Div, Pow, Sqrt, Pi, E, Cbrt, Sin, Cos, Tan, Log, simplify, expand
 from .parser import parse, ParseError
 
 __all__ = [
     "Expr", "Int", "Var", "Rational",
     "Neg", "Add", "Mul", "Div", "Pow", "Sqrt",
     "Pi", "E", "Cbrt", "Sin", "Cos", "Tan", "Log",
-    "simplify",
+    "simplify", "expand",
     "parse", "ParseError"
 ]
 
@@ -23,3 +23,7 @@ def _expr_str_(self):
 
 Expr._repr_latex_ = _expr_repr_latex_
 Expr.__str__ = _expr_str_
+
+def _expr_expand_(self):
+    return expand(self)
+Expr.expand = _expr_expand_
