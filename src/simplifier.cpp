@@ -216,6 +216,126 @@ ExprPtr simplify(ExprPtr expr) {
             return std::make_shared<Sqrt>(op);
         }
 
+        case ExprType::CBRT: {
+            auto c = std::static_pointer_cast<Cbrt>(expr);
+            auto op = simplify(c->operand());
+
+            // cbrt(0) -> 0, cbrt(1) -> 1
+            if (is_int(op, 0)) return std::make_shared<Int>(0);
+            if (is_int(op, 1)) return std::make_shared<Int>(1);
+
+            // cbrt(x^3) -> x (厳密にはxが実数の場合だがここでは簡易的に)
+            if (op->type() == ExprType::POW) {
+                auto p = std::static_pointer_cast<Pow>(op);
+                if (is_int(p->exp(), 3)) return p->base();
+            }
+
+            // cbrt(定数) の計算 (例: cbrt(8) -> 2)
+            if (op->type() == ExprType::INT) {
+                int v = std::static_pointer_cast<Int>(op)->value();
+                int root = std::round(std::cbrt(v));
+                if (root * root * root == v) {
+                    return std::make_shared<Int>(root);
+                }
+            }
+
+            return std::make_shared<Cbrt>(op);
+        }
+
+        case ExprType::LOG: {
+            auto l = std::static_pointer_cast<Log>(expr);
+            auto op = simplify(l->operand());
+
+            // ln(1) -> 0
+            if (is_int(op, 1)) return std::make_shared<Int>(0);
+            
+            // ln(e) -> 1
+            if (op->type() == ExprType::E) return std::make_shared<Int>(1);
+
+            // ln(e^x) -> x
+            if (op->type() == ExprType::POW) {
+                auto p = std::static_pointer_cast<Pow>(op);
+                if (p->base()->type() == ExprType::E) {
+                    return p->exp();
+                }
+            }
+
+            return std::make_shared<Log>(op);
+        }
+
+        case ExprType::SIN:
+        case ExprType::COS:
+        case ExprType::TAN: {
+            auto type = expr->type();
+            ExprPtr op;
+            if (type == ExprType::SIN) op = std::static_pointer_cast<Sin>(expr)->operand();
+            else if (type == ExprType::COS) op = std::static_pointer_cast<Cos>(expr)->operand();
+            else op = std::static_pointer_cast<Tan>(expr)->operand();
+            
+            op = simplify(op);
+
+            // sin(0)->0, cos(0)->1, tan(0)->0
+            if (is_int(op, 0)) {
+                if (type == ExprType::COS) return std::make_shared<Int>(1);
+                return std::make_shared<Int>(0);
+            }
+
+            // 特殊角の処理 (pi/4, pi/2 など)
+            // ここでは簡易的に Div(Pi, Int(d)) または Div(Mul(Int(n), Pi), Int(d)) をチェック
+            int n = 1, d = 1;
+            bool is_pi_mul = false;
+
+            if (op->type() == ExprType::PI) {
+                is_pi_mul = true; n = 1; d = 1;
+            } else if (op->type() == ExprType::DIV) {
+                auto div = std::static_pointer_cast<Div>(op);
+                auto num = div->num();
+                auto den = div->den();
+                if (den->type() == ExprType::INT) {
+                    d = std::static_pointer_cast<Int>(den)->value();
+                    if (num->type() == ExprType::PI) {
+                        is_pi_mul = true; n = 1;
+                    } else if (num->type() == ExprType::MUL) {
+                        auto m = std::static_pointer_cast<Mul>(num);
+                        if (m->left()->type() == ExprType::INT && m->right()->type() == ExprType::PI) {
+                            is_pi_mul = true;
+                            n = std::static_pointer_cast<Int>(m->left())->value();
+                        }
+                    }
+                }
+            }
+
+            if (is_pi_mul) {
+                // n*pi / d の形になっている。角度を主値に直すなどの厳密な処理は省略し、典型的な値のみ。
+                // 優先度C: sin(pi/4) -> sqrt(2)/2
+                if (n == 1 && d == 4) {
+                    if (type == ExprType::SIN || type == ExprType::COS) {
+                        // sqrt(2) / 2
+                        return std::make_shared<Div>(
+                            std::make_shared<Sqrt>(std::make_shared<Int>(2)),
+                            std::make_shared<Int>(2)
+                        );
+                    } else if (type == ExprType::TAN) {
+                        return std::make_shared<Int>(1);
+                    }
+                }
+                if (n == 1 && d == 1) { // pi
+                    if (type == ExprType::SIN) return std::make_shared<Int>(0);
+                    if (type == ExprType::COS) return std::make_shared<Int>(-1);
+                    if (type == ExprType::TAN) return std::make_shared<Int>(0);
+                }
+                if (n == 1 && d == 2) { // pi/2
+                    if (type == ExprType::SIN) return std::make_shared<Int>(1);
+                    if (type == ExprType::COS) return std::make_shared<Int>(0);
+                    if (type == ExprType::TAN) throw std::invalid_argument("tan(pi/2) は定義されていません");
+                }
+            }
+
+            if (type == ExprType::SIN) return std::make_shared<Sin>(op);
+            if (type == ExprType::COS) return std::make_shared<Cos>(op);
+            return std::make_shared<Tan>(op);
+        }
+
         default:
             return expr;
     }

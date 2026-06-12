@@ -102,10 +102,52 @@ def test_phase2_sqrt_simplify():
     assert sim2.to_string() == "\\frac{\\sqrt{2}}{2}"
 
 
+def test_phase3_nodes():
+    """フェーズ3: 新しい記号と関数ノードの生成とLaTeX出力テスト"""
+    from symbuna import Pi, E, Cbrt, Sin, Cos, Tan, Log
+    x = Var("x")
+    
+    assert Pi().to_string() == "\\pi"
+    assert E().to_string() == "e"
+    assert Cbrt(x).to_string() == "\\sqrt[3]{x}"
+    assert Sin(x).to_string() == "\\sin\\left(x\\right)"
+    assert Cos(x).to_string() == "\\cos\\left(x\\right)"
+    assert Tan(x).to_string() == "\\tan\\left(x\\right)"
+    assert Log(x).to_string() == "\\ln\\left(x\\right)"
+
+def test_phase3_simplify():
+    """フェーズ3: 三角関数・対数・立方根の簡略化テスト"""
+    from symbuna import Pi, E, Cbrt, Sin, Cos, Tan, Log, Div, Int, Pow
+    
+    # sin(pi) -> 0
+    assert simplify(Sin(Pi())).to_string() == "0"
+    
+    # cos(pi/4) -> sqrt(2)/2
+    pi_over_4 = Div(Pi(), Int(4))
+    sim_cos = simplify(Cos(pi_over_4))
+    assert sim_cos.to_string() == "\\frac{\\sqrt{2}}{2}"
+    
+    # ln(e) -> 1
+    assert simplify(Log(E())).to_string() == "1"
+    
+    # ln(e^2) -> 2
+    e_sq = Pow(E(), Int(2))
+    assert simplify(Log(e_sq)).to_string() == "2"
+    
+    # cbrt(8) -> 2
+    assert simplify(Cbrt(Int(8))).to_string() == "2"
+    
+    # cbrt(x^3) -> x
+    x = Var("x")
+    x_cubed = Pow(x, Int(3))
+    assert simplify(Cbrt(x_cubed)).to_string() == "x"
+
 if __name__ == "__main__":
     test_phase1_nodes()
     test_phase2_operators()
     test_phase2_rational()
     test_phase2_simplify()
     test_phase2_sqrt_simplify()
-    print("✅ フェーズ2: すべてのテストに合格しました！")
+    test_phase3_nodes()
+    test_phase3_simplify()
+    print("✅ フェーズ3: すべてのテストに合格しました！")

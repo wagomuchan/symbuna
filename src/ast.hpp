@@ -15,7 +15,8 @@ using ExprPtr = std::shared_ptr<Expr>;
 
 // ノードの種類を識別する列挙型
 enum class ExprType {
-    INT, VAR, RATIONAL, NEG, ADD, MUL, DIV, POW, SQRT
+    INT, VAR, RATIONAL, NEG, ADD, MUL, DIV, POW, SQRT,
+    PI, E, CBRT, SIN, COS, TAN, LOG
 };
 
 // ── 基底クラス ──────────────────────────────────────
@@ -364,6 +365,73 @@ public:
 private:
     ExprPtr operand_;
 };
+
+// ── 円周率ノード (π) ──────────────────────────────────
+class Pi : public Expr {
+public:
+    ExprType type() const override { return ExprType::PI; }
+    int precedence() const override { return 5; }
+    std::string to_string() const override { return "\\pi"; }
+    bool equals(const ExprPtr& other) const override {
+        return other->type() == ExprType::PI;
+    }
+};
+
+// ── ネイピア数ノード (e) ──────────────────────────────
+class E : public Expr {
+public:
+    ExprType type() const override { return ExprType::E; }
+    int precedence() const override { return 5; }
+    std::string to_string() const override { return "e"; }
+    bool equals(const ExprPtr& other) const override {
+        return other->type() == ExprType::E;
+    }
+};
+
+// ── 立方根ノード (cbrt) ───────────────────────────────
+class Cbrt : public Expr {
+public:
+    explicit Cbrt(ExprPtr operand) : operand_(std::move(operand)) {}
+    const ExprPtr& operand() const { return operand_; }
+
+    ExprType type() const override { return ExprType::CBRT; }
+    int precedence() const override { return 5; }
+    std::string to_string() const override {
+        return "\\sqrt[3]{" + operand_->to_string() + "}";
+    }
+    bool equals(const ExprPtr& other) const override {
+        return other->type() == ExprType::CBRT &&
+               operand_->equals(std::static_pointer_cast<Cbrt>(other)->operand_);
+    }
+private:
+    ExprPtr operand_;
+};
+
+// ── 関数呼び出しのヘルパーマクロ（簡略化のため） ──────
+#define DEFINE_UNARY_FUNC_NODE(ClassName, EnumType, LaTeXName) \
+class ClassName : public Expr { \
+public: \
+    explicit ClassName(ExprPtr operand) : operand_(std::move(operand)) {} \
+    const ExprPtr& operand() const { return operand_; } \
+    ExprType type() const override { return ExprType::EnumType; } \
+    int precedence() const override { return 5; } \
+    std::string to_string() const override { \
+        return std::string("\\") + LaTeXName + "\\left(" + operand_->to_string() + "\\right)"; \
+    } \
+    bool equals(const ExprPtr& other) const override { \
+        return other->type() == ExprType::EnumType && \
+               operand_->equals(std::static_pointer_cast<ClassName>(other)->operand_); \
+    } \
+private: \
+    ExprPtr operand_; \
+};
+
+DEFINE_UNARY_FUNC_NODE(Sin, SIN, "sin")
+DEFINE_UNARY_FUNC_NODE(Cos, COS, "cos")
+DEFINE_UNARY_FUNC_NODE(Tan, TAN, "tan")
+DEFINE_UNARY_FUNC_NODE(Log, LOG, "ln")
+
+#undef DEFINE_UNARY_FUNC_NODE
 
 } // namespace symbuna
 

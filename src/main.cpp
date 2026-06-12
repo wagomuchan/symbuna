@@ -62,6 +62,34 @@ PYBIND11_MODULE(_symbuna_core, m) {
         .def(py::init<std::shared_ptr<symbuna::Expr>>(), py::arg("operand"))
         .def("operand", &symbuna::Sqrt::operand);
 
+    // ── 定数ノード (Pi, E) ───────────────────────────
+    py::class_<symbuna::Pi, symbuna::Expr, std::shared_ptr<symbuna::Pi>>(m, "Pi")
+        .def(py::init<>());
+
+    py::class_<symbuna::E, symbuna::Expr, std::shared_ptr<symbuna::E>>(m, "E")
+        .def(py::init<>());
+
+    // ── 関数ノード (Cbrt, Sin, Cos, Tan, Log) ─────────
+    py::class_<symbuna::Cbrt, symbuna::Expr, std::shared_ptr<symbuna::Cbrt>>(m, "Cbrt")
+        .def(py::init<std::shared_ptr<symbuna::Expr>>(), py::arg("operand"))
+        .def("operand", &symbuna::Cbrt::operand);
+
+    py::class_<symbuna::Sin, symbuna::Expr, std::shared_ptr<symbuna::Sin>>(m, "Sin")
+        .def(py::init<std::shared_ptr<symbuna::Expr>>(), py::arg("operand"))
+        .def("operand", &symbuna::Sin::operand);
+
+    py::class_<symbuna::Cos, symbuna::Expr, std::shared_ptr<symbuna::Cos>>(m, "Cos")
+        .def(py::init<std::shared_ptr<symbuna::Expr>>(), py::arg("operand"))
+        .def("operand", &symbuna::Cos::operand);
+
+    py::class_<symbuna::Tan, symbuna::Expr, std::shared_ptr<symbuna::Tan>>(m, "Tan")
+        .def(py::init<std::shared_ptr<symbuna::Expr>>(), py::arg("operand"))
+        .def("operand", &symbuna::Tan::operand);
+
+    py::class_<symbuna::Log, symbuna::Expr, std::shared_ptr<symbuna::Log>>(m, "Log")
+        .def(py::init<std::shared_ptr<symbuna::Expr>>(), py::arg("operand"))
+        .def("operand", &symbuna::Log::operand);
+
     // ── 簡略化関数 simplify ───────────────────────────
     m.def("simplify", &symbuna::simplify, "数式を簡略化する", py::arg("expr"));
 }
