@@ -27,7 +27,7 @@ class BuildExt(build_ext):
 ext_modules = [
     Extension(
         "_symbuna_core",
-        sources=["src/main.cpp"],
+        sources=["src/main.cpp", "src/simplifier.cpp"],
         include_dirs=[
             pybind11.get_include(),
             pybind11.get_include(user=True),
