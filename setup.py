@@ -39,7 +39,7 @@ ext_modules = [
 
 setup(
     name="symbuna",
-    version="0.2.0",
+    version="0.2.1",
     author="SymBuna Developers",
     description="高校数Ⅲレベルの数式処理ライブラリ",
     long_description=open("readme.md", encoding="utf-8").read(),
